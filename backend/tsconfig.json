@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "types": ["node"],
+
+    "strict": true,
+    "skipLibCheck": true,
+
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": true,
+
+    "sourceMap": true
+  }
+}

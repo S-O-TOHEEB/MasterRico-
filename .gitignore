@@ -1,0 +1,46 @@
+# ── Node / TypeScript ─────────────────────────────────────────────────────────
+node_modules/
+dist/
+*.js.map
+*.d.ts
+.npm/
+
+# ── Python / AI service ───────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+dist-python/
+
+# ── Environment files (NEVER commit secrets) ─────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+ai_service/.env
+!backend/.env.example
+!ai_service/.env.example
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+backend/logs/
+
+# ── OS / IDE ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Coverage / Test artefacts ─────────────────────────────────────────────────
+coverage/
+.nyc_output/
+htmlcov/
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+*.tar

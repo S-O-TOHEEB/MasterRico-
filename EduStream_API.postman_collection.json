@@ -1,0 +1,1643 @@
+{
+  "info": {
+    "name": "EduStream API v2",
+    "description": "Complete collection for all 47 EduStream endpoints.\n\n**Setup:**\n1. Import this collection\n2. Create an Environment with variable `base_url = http://localhost:3000`\n3. Run `POST /auth/register` or `POST /auth/login` \u2014 the test script auto-saves the token\n4. All protected routes pick up `{{token}}` automatically",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "course_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "enrollment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "path_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cert_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "section_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lesson_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "post_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reply_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "Returns service status. No auth required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json(); if (r.token) { pm.collectionVariables.set('token', r.token); pm.collectionVariables.set('user_id', r.user?.id || ''); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"creator@test.com\",\n  \"password\": \"Password1!\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"role\": \"creator\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json(); if (r.token) { pm.collectionVariables.set('token', r.token); pm.collectionVariables.set('user_id', r.user?.id || ''); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"creator@test.com\",\n  \"password\": \"Password1!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        {
+          "name": "List Published Courses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/courses?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courses"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Course",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}"
+          }
+        },
+        {
+          "name": "My Courses (Creator)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/my/courses"
+          }
+        },
+        {
+          "name": "Create Course",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json(); if (r.data?.id) pm.collectionVariables.set('course_id', r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Introduction to TypeScript\",\n  \"description\": \"Learn TypeScript from scratch with real projects.\",\n  \"tagline\": \"Go from JS to TS in 10 hours\",\n  \"pricePence\": 2999,\n  \"currency\": \"GBP\",\n  \"difficultyLevel\": \"beginner\",\n  \"learningOutcomes\": [\"Understand type annotations\", \"Build typed APIs\"],\n  \"prerequisites\": [\"Basic JavaScript\"],\n  \"language\": \"en\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Course",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tagline\": \"Updated: Go from JS to TS in 8 hours\",\n  \"estimatedDurationMinutes\": 480\n}"
+            }
+          }
+        },
+        {
+          "name": "Publish Course",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/publish"
+          }
+        },
+        {
+          "name": "Archive Course",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/archive"
+          }
+        },
+        {
+          "name": "Delete Course (draft only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search Courses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "Optional \u2014 enables trust graph boost"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/search?q=typescript&level=beginner&minRating=4&maxPrice=5000&page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "typescript"
+                },
+                {
+                  "key": "level",
+                  "value": "beginner"
+                },
+                {
+                  "key": "minRating",
+                  "value": "4"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "5000"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Trending Courses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/search/trending?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "trending"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Personalised Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/search/recommendations"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enrollments",
+      "item": [
+        {
+          "name": "My Enrollments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/enrollments/my"
+          }
+        },
+        {
+          "name": "Enrol (Free Course)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/enrollments/free",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{course_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Initiate Paid Enrolment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/enrollments/pay",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{course_id}}\",\n  \"source\": \"platform\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sync Progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/enrollments/{{course_id}}/progress/sync"
+          }
+        },
+        {
+          "name": "Check Access",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/enrollments/{{course_id}}/access"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "List Course Reviews",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/courses/{{course_id}}/reviews?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courses",
+                "{{course_id}}",
+                "reviews"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json(); if (r.data?.id) pm.collectionVariables.set('review_id', r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/reviews",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent course \u2014 very practical and well-paced.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/reviews/{{review_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Great course but could use more exercises.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Mark Review Helpful",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/reviews/{{review_id}}/helpful"
+          }
+        },
+        {
+          "name": "Delete Review",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/reviews/{{review_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Get Current Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/subscriptions/current"
+          }
+        },
+        {
+          "name": "Subscribe \u2014 Learner Pro Monthly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/subscriptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"learner_pro\",\n  \"billingPeriod\": \"monthly\",\n  \"currency\": \"GBP\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Subscribe \u2014 Creator Pro Monthly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/subscriptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"creator_pro\",\n  \"billingPeriod\": \"monthly\",\n  \"currency\": \"GBP\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/subscriptions/current"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Certificates",
+      "item": [
+        {
+          "name": "Issue Certificate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json(); if (r.data?.certificateCode) pm.collectionVariables.set('cert_code', r.data.certificateCode);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/certificates",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{course_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My Certificates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/certificates/my"
+          }
+        },
+        {
+          "name": "Verify Certificate (Public)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/certificates/verify/{{cert_code}}",
+            "description": "No auth required \u2014 for LinkedIn / employer verification"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile & Trust Graph",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/profile/me"
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/profile/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Senior software engineer and TypeScript educator.\",\n  \"websiteUrl\": \"https://janedoe.dev\",\n  \"interests\": [\"typescript\", \"backend\", \"system-design\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Creator Profile (Public)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/profile/creators/{{user_id}}"
+          }
+        },
+        {
+          "name": "Follow a User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/profile/follow/{{user_id}}"
+          }
+        },
+        {
+          "name": "Unfollow a User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/profile/follow/{{user_id}}"
+          }
+        },
+        {
+          "name": "List Following",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/profile/following"
+          }
+        },
+        {
+          "name": "List Followers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/profile/followers"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Learning Paths",
+      "item": [
+        {
+          "name": "List Published Paths",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/learning-paths?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "learning-paths"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "My Learning Paths",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/learning-paths/my/paths"
+          }
+        },
+        {
+          "name": "Get Single Path",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/learning-paths/{{path_id}}"
+          }
+        },
+        {
+          "name": "Create Learning Path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json(); if (r.data?.id) pm.collectionVariables.set('path_id', r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Full-Stack TypeScript Engineer\",\n  \"description\": \"From JavaScript basics to production-grade Node APIs and React apps.\",\n  \"outcome\": \"Confidently build and ship full-stack TypeScript applications.\",\n  \"courseIds\": [\"{{course_id}}\"],\n  \"tags\": [\"typescript\", \"fullstack\", \"backend\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Learning Path",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/learning-paths/{{path_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Full-Stack TypeScript Engineer \u2014 Updated\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Publish Learning Path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/learning-paths/{{path_id}}/publish"
+          }
+        },
+        {
+          "name": "Reorder Courses in Path",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/learning-paths/{{path_id}}/reorder",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseIds\": [\"{{course_id}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Learning Path",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/learning-paths/{{path_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Stripe Webhook (simulated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "stripe-signature",
+                "value": "t=1234567890,v1=test_signature",
+                "description": "Real sig generated by Stripe CLI: stripe listen --forward-to localhost:3000/api/v1/webhooks/stripe"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/webhooks/stripe",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_test_123\",\n      \"metadata\": {\n        \"enrollmentId\": \"{{enrollment_id}}\"\n      }\n    }\n  }\n}"
+            },
+            "description": "\u26a0\ufe0f Signature verification will reject this in production. Use the Stripe CLI to forward real events:\n\nstripe listen --forward-to localhost:3000/api/v1/webhooks/stripe"
+          }
+        },
+        {
+          "name": "Paystack Webhook (simulated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-paystack-signature",
+                "value": "test_signature",
+                "description": "Compute with: echo -n BODY | openssl dgst -sha512 -hmac YOUR_SECRET"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/webhooks/paystack",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"ps_ref_test_123\",\n    \"metadata\": {\n      \"enrollmentId\": \"{{enrollment_id}}\"\n    }\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sections (Course Content)",
+      "item": [
+        {
+          "name": "List Sections",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections",
+            "description": "Public. Returns ordered sections with nested lessons."
+          }
+        },
+        {
+          "name": "Create Section",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r=pm.response.json();if(r.data?.id)pm.collectionVariables.set('section_id',r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Getting Started\",\n  \"orderIndex\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Section",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Introduction & Setup\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reorder Sections",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/reorder",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderedIds\": [\"{{section_id}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Section",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lessons (Course Content)",
+      "item": [
+        {
+          "name": "List Lessons in Section",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}/lessons"
+          }
+        },
+        {
+          "name": "Create Lesson",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r=pm.response.json();if(r.data?.id)pm.collectionVariables.set('lesson_id',r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}/lessons",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"What is TypeScript?\",\n  \"description\": \"Overview of TypeScript and why it exists.\",\n  \"type\": \"video\",\n  \"videoUrl\": \"https://stream.mux.com/your-playback-id.m3u8\",\n  \"durationSeconds\": 480,\n  \"isPreviewable\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Lesson",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}/lessons/{{lesson_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"TypeScript Fundamentals\",\n  \"durationSeconds\": 520\n}"
+            }
+          }
+        },
+        {
+          "name": "Reorder Lessons",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}/lessons/reorder",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderedIds\": [\"{{lesson_id}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lesson",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/sections/{{section_id}}/lessons/{{lesson_id}}"
+          }
+        },
+        {
+          "name": "Mark Lesson Complete (Learner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/lessons/{{lesson_id}}/complete",
+            "description": "Learner action. Auto-syncs course progress. Issues certificate when 100% reached."
+          }
+        },
+        {
+          "name": "Get My Lesson Progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/lessons/{{lesson_id}}/progress"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Creator Dashboard",
+      "item": [
+        {
+          "name": "Analytics Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/creator/analytics",
+            "description": "Total students, revenue, avg rating, published/draft course count."
+          }
+        },
+        {
+          "name": "Earnings Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/creator/analytics/earnings",
+            "description": "Per-course: gross revenue, platform commission, net payout."
+          }
+        },
+        {
+          "name": "Student List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/creator/analytics/students?page=1&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "creator",
+                "analytics",
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Per-Course Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/creator/analytics/courses/{{course_id}}",
+            "description": "Enrollment count, completion rate, recent students, latest reviews for one course."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Community & Discussions",
+      "item": [
+        {
+          "name": "List Course Discussions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/courses/{{course_id}}/discussions?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courses",
+                "{{course_id}}",
+                "discussions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Returns pinned posts first, then newest. Add ?lessonId= to filter to a specific lesson's Q&A."
+          }
+        },
+        {
+          "name": "List Lesson Q&A",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/courses/{{course_id}}/discussions?lessonId={{lesson_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courses",
+                "{{course_id}}",
+                "discussions"
+              ],
+              "query": [
+                {
+                  "key": "lessonId",
+                  "value": "{{lesson_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Discussion Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r=pm.response.json();if(r.data?.id)pm.collectionVariables.set('post_id',r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/discussions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Why does TypeScript complain about this type?\",\n  \"body\": \"I'm getting a type error on line 42 when assigning a string to a number field. Here's my code...\",\n  \"category\": \"question\",\n  \"lessonId\": \"{{lesson_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Discussion Thread (with replies)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/courses/{{course_id}}/discussions/{{post_id}}"
+          }
+        },
+        {
+          "name": "Update Post",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/{{post_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Updated question body with more context...\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upvote Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/{{post_id}}/upvote"
+          }
+        },
+        {
+          "name": "Pin Post (Creator/Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/{{post_id}}/pin",
+            "description": "Toggles pinned status. Pinned posts appear at the top of the discussion list."
+          }
+        },
+        {
+          "name": "Add Reply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r=pm.response.json();if(r.data?.id)pm.collectionVariables.set('reply_id',r.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/{{post_id}}/replies",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"The issue is TypeScript's strict null checks. You need to assert the type or use a type guard.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Mark as Accepted Answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/{{post_id}}/replies/{{reply_id}}/accept",
+            "description": "Post author or enrolled creator marks the reply as the accepted answer. Resolves the thread."
+          }
+        },
+        {
+          "name": "Update Reply",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/replies/{{reply_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Corrected reply body here.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Reply",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/replies/{{reply_id}}"
+          }
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/discussions/{{post_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications?page=1&limit=30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Unread Count (bell badge)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/notifications/unread-count"
+          }
+        },
+        {
+          "name": "Mark One Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/notifications/{{notification_id}}/read"
+          }
+        },
+        {
+          "name": "Mark All Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/notifications/read-all"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# EduStream — Render Blueprint
+#
+# Deploy steps:
+#   1. Push repo to GitHub
+#   2. Render Dashboard → New → Blueprint → connect repo → render.yaml auto-detected
+#   3. Render provisions postgres, redis, backend, and ai_service automatically
+#   4. Set all keys marked  sync: false  in each service's Environment tab
+#   5. After first deploy: copy edustream-ai URL → set as AI_SERVICE_URL on backend
+#   6. Register webhook URLs in Stripe, Paystack, and Mux dashboards
+#      Stripe:   https://<backend-url>/api/v1/webhooks/stripe
+#      Paystack: https://<backend-url>/api/v1/webhooks/paystack
+#      Mux:      https://<backend-url>/api/v1/webhooks/mux
+# ─────────────────────────────────────────────────────────────────────────────
+
+databases:
+  - name: edustream-postgres
+    databaseName: edustream
+    user: edustream
+    plan: starter          # upgrade to standard for production load
+
+services:
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  - type: redis
+    name: edustream-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+
+  # ── AI Microservice ──────────────────────────────────────────────────────────
+  - type: web
+    name: edustream-ai
+    runtime: python
+    plan: starter
+    rootDir: ai_service
+    buildCommand: pip install -r requirements.txt
+    # Render injects $PORT — must not hardcode 8000. (The Dockerfile's own CMD
+    # now handles this too via ${PORT:-8000}, so this override is redundant
+    # with the Dockerfile but kept explicit here for clarity.)
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # ── Runtime pin — matches python:3.12-slim in ai_service/Dockerfile.
+      # Without this, Render's native-runtime default (3.14.x as of mid-2026)
+      # is two majors ahead of what requirements.txt has actually been tested
+      # against (fastapi 0.111.0 / pydantic 2.7.1 / httpx 0.27.0, all ~2024).
+      - key: PYTHON_VERSION
+        value: 3.12.13
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: INTERNAL_API_KEY     # must match backend's AI_INTERNAL_API_KEY
+        sync: false
+
+  # ── Backend API ──────────────────────────────────────────────────────────────
+  - type: web
+    name: edustream-backend
+    runtime: node
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      # ── Runtime pin — Node 22 LTS ('Jod', supported through Apr 2027).
+      # backend/Dockerfile now also pins node:22-alpine, so this matches
+      # rather than overrides it — kept explicit here because Render's own
+      # native-runtime default still drifts over time independent of the
+      # Dockerfile (it was 24.x as of mid-2026), and this render.yaml applies
+      # even if the Dockerfile changes again later.
+      - key: NODE_VERSION
+        value: 22.22.3
+      - key: NODE_ENV
+        value: production
+
+      # ── Auto-populated by Render from the resources above ────────────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: edustream-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: edustream-redis
+          property: connectionString
+
+      # ── Schema sync: keep true for initial deploy, flip to false once stable ──
+      - key: TYPEORM_SYNC
+        value: "true"
+
+      # ── After first deploy: paste your edustream-ai Render URL here ───────────
+      # Format: https://edustream-ai-xxxx.onrender.com
+      - key: AI_SERVICE_URL
+        sync: false
+
+      # ── Secrets — set manually in Render dashboard ────────────────────────────
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS         # e.g. https://your-frontend.vercel.app
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: AI_INTERNAL_API_KEY  # must match ai_service INTERNAL_API_KEY
+        sync: false
+
+      # ── Email (Brevo SMTP) — EmailService.ts uses these, not SendGrid ─────────
+      - key: BREVO_SMTP_USER
+        sync: false
+      - key: BREVO_SMTP_PASS
+        sync: false
+
+      # ── File storage — set STORAGE_PROVIDER to s3, cloudinary, or local.
+      # local is fine for a quick demo but the filesystem is ephemeral on
+      # Render redeploys/restarts; use s3 or cloudinary for anything real ───────
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      # Optional — serve uploads through CloudFront instead of raw S3 URLs
+      - key: AWS_CLOUDFRONT_URL
+        sync: false
+      # Only needed if STORAGE_PROVIDER=cloudinary instead
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── Video (Mux) ────────────────────────────────────────────────────────────
+      - key: MUX_TOKEN_ID
+        sync: false
+      - key: MUX_TOKEN_SECRET
+        sync: false
+      - key: MUX_WEBHOOK_SECRET
+        sync: false
+
+      # ── Live sessions (LiveKit) ────────────────────────────────────────────────
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: LIVEKIT_URL          # e.g. wss://your-project.livekit.cloud
+        sync: false
