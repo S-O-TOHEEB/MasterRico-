@@ -25,6 +25,9 @@ services:
     name: edustream-redis
     plan: starter
     maxmemoryPolicy: noeviction
+     ipAllowList:
+    - source: 0.0.0.0/0
+      description: Allow all
 
   # ── AI Microservice ──────────────────────────────────────────────────────────
   - type: web
