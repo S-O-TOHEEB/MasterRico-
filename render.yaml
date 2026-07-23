@@ -25,7 +25,7 @@ services:
     name: edustream-redis
     plan: starter
     maxmemoryPolicy: noeviction
-     ipAllowList:
+    ipAllowList:
     - source: 0.0.0.0/0
       description: Allow all
 
