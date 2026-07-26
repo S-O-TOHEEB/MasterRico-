@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { createRouter } from "../utils/safeRouter.js";
 import {
-  initializePayment,
   myPayments, getPayment, listPayments,
   updatePaymentStatus, refundPayment, removePayment,
 } from "../controllers/PaymentController.js";
@@ -10,13 +9,26 @@ import { authenticate, authorize } from "../middlewares/auth.js";
 const router = createRouter();
 
 /**
- * POST /api/v1/payments/initialize
+ * There is deliberately no generic POST /payments/initialize here. An
+ * earlier version had one — it took `amount` and `metadata` (including
+ * `enrollmentId`/`subscriptionId`/`corporateAccountId`) straight from the
+ * request body and handed them to the gateway unmodified. That let an
+ * authenticated user create a real enrollment/subscription for its actual
+ * price, then call that endpoint directly with a trivial amount but the
+ * same referenceId, pay the tiny charge, and have the webhook activate the
+ * full-price resource — completePurchase correlated purely by id and never
+ * checked the amount paid against the resource's real price.
  *
- * Kicks off a Stripe or Paystack payment session. The gateway is selected
- * automatically by the PaymentOrchestrator based on the `currency` field
- * in the request body (NGN/GHS/ZAR/KES → Paystack, everything else → Stripe).
- * Every call here also creates a PENDING row in the payments ledger below —
- * see PaymentOrchestrator.initializePayment.
+ * Every real payment flow computes its amount server-side and calls
+ * PaymentOrchestrator.initializePayment() directly from its own service —
+ * see EnrollmentService.initiatePayment, SubscriptionService.initiate,
+ * CorporateService.initiatePurchase, CertificateService.initiateVerifiedPayment.
+ * None of them need or use an HTTP endpoint for this step. If a future
+ * feature genuinely needs a client-facing "start a payment" endpoint, it
+ * must derive the amount from a server-side lookup (course/plan/tier price),
+ * never accept it as a request body field — and WebhookService.completePurchase
+ * now independently verifies the paid amount against the referenced
+ * resource's stored price regardless, as defense in depth.
  *
  * Stripe webhook  → POST /api/v1/webhooks/stripe
  * Paystack webhook → POST /api/v1/webhooks/paystack
@@ -25,7 +37,6 @@ const router = createRouter();
  * express.json() so raw body is available for HMAC verification).
  * Do NOT add webhook routes here.
  */
-router.post("/initialize", authenticate, initializePayment);
 
 // ── Payments ledger ──────────────────────────────────────────────────────────
 router.get(   "/my",           authenticate, myPayments);

@@ -56,7 +56,7 @@ export class PaymentMethodService {
     const verified =
       dto.provider === PaymentMethodProvider.STRIPE
         ? await this.verifyAndAttachStripe(userId, dto)
-        : await this.verifyPaystack(dto);
+        : await this.verifyPaystack(userId, dto);
 
     const existingCount = await this.repo.countBy({ userId });
     const shouldBeDefault = dto.makeDefault ?? existingCount === 0;
@@ -149,7 +149,7 @@ export class PaymentMethodService {
     };
   }
 
-  private async verifyPaystack(dto: AddPaymentMethodDto): Promise<VerifiedCard> {
+  private async verifyPaystack(userId: string, dto: AddPaymentMethodDto): Promise<VerifiedCard> {
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey) throw new Error("Paystack is not configured — set PAYSTACK_SECRET_KEY");
     if (!dto.paystackReference) throw new Error("paystackReference is required for provider=paystack");
@@ -161,6 +161,17 @@ export class PaymentMethodService {
     const data = response.data.data;
     if (data.status !== "success") {
       throw new Error("That Paystack transaction was not successful — can't save this card");
+    }
+
+    // Without this, a paystackReference becoming known to someone other
+    // than its original payer (server logs, a referral link, a
+    // low-entropy client-generated ref) would let them attach that
+    // person's card to their own account — verifying the charge succeeded
+    // isn't the same as verifying it was *this* user's charge.
+    const user = await this.userRepo.findOneBy({ id: userId });
+    const transactionEmail = (data.customer?.email as string | undefined)?.toLowerCase();
+    if (!user || !transactionEmail || transactionEmail !== user.email.toLowerCase()) {
+      throw new Error("This transaction doesn't belong to your account");
     }
 
     const auth = data.authorization;

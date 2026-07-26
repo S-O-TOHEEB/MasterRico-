@@ -14,7 +14,10 @@ export class AuthService {
   private userRepository = AppDataSource.getRepository(User);
 
   async register(userData: Partial<User>) {
-    const { email, password, firstName, lastName, role } = userData;
+    const { email, password, firstName, lastName } = userData;
+    // role is deliberately NOT destructured from userData — accepting it
+    // from the client here would let anyone self-register as admin. Role
+    // changes only happen through an authenticated admin-only path.
 
     if (!email || !password || !firstName || !lastName) {
       throw new Error("email, password, firstName and lastName are required");
@@ -31,7 +34,7 @@ export class AuthService {
       password: hashedPassword,
       firstName,
       lastName,
-      role: role || UserRole.LEARNER,
+      role: UserRole.LEARNER,
       subscriptionTier: SubscriptionTier.FREE,
     });
 

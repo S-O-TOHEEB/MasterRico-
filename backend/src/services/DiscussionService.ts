@@ -4,6 +4,8 @@ import { DiscussionReply } from "../entities/DiscussionReply.js";
 import { Enrollment, EnrollmentStatus } from "../entities/Enrollment.js";
 import { NotificationService } from "./NotificationService.js";
 import { NotificationType } from "../entities/Notification.js";
+import { EngagementVote, EngagementTargetType } from "../entities/EngagementVote.js";
+import { pickFields } from "../utils/pickFields.js";
 
 interface CreatePostDto {
   title: string;
@@ -16,10 +18,17 @@ interface CreateReplyDto {
   body: string;
 }
 
+// Deliberately excludes isFlagged, isPinned, upvoteCount, authorId, and
+// every other ordinary DiscussionPost column — without this, an author
+// could PATCH their own flagged post with { "isFlagged": false } and
+// silently un-hide content a moderator had just hidden.
+const UPDATABLE_POST_FIELDS = ["title", "body", "category", "lessonId"] as const;
+
 export class DiscussionService {
   private postRepo        = AppDataSource.getRepository(DiscussionPost);
   private replyRepo       = AppDataSource.getRepository(DiscussionReply);
   private enrollmentRepo  = AppDataSource.getRepository(Enrollment);
+  private voteRepo        = AppDataSource.getRepository(EngagementVote);
   private notifService    = new NotificationService();
 
   async createPost(
@@ -79,7 +88,7 @@ export class DiscussionService {
   ): Promise<DiscussionPost> {
     const post = await this.postRepo.findOneBy({ id: postId, authorId });
     if (!post) throw new Error("Post not found or access denied");
-    Object.assign(post, dto);
+    Object.assign(post, pickFields(dto, UPDATABLE_POST_FIELDS));
     return this.postRepo.save(post);
   }
 
@@ -89,11 +98,21 @@ export class DiscussionService {
     await this.postRepo.remove(post);
   }
 
-  async upvotePost(postId: string): Promise<DiscussionPost> {
+  async upvotePost(postId: string, userId: string): Promise<DiscussionPost> {
     const post = await this.postRepo.findOneBy({ id: postId });
     if (!post) throw new Error("Post not found");
-    post.upvoteCount++;
-    return this.postRepo.save(post);
+
+    try {
+      await this.voteRepo.insert({ userId, targetType: EngagementTargetType.DISCUSSION_POST, targetId: postId });
+    } catch (err: any) {
+      if (err.code === "23505") { // Postgres unique_violation
+        throw new Error("You've already upvoted this post");
+      }
+      throw err;
+    }
+
+    await this.postRepo.increment({ id: postId }, "upvoteCount", 1);
+    return this.postRepo.findOneByOrFail({ id: postId });
   }
 
   async addReply(

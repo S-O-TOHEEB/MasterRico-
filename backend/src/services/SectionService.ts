@@ -1,11 +1,14 @@
 import { AppDataSource } from "../config/database.js";
 import { Section } from "../entities/Section.js";
 import { Course } from "../entities/Course.js";
+import { pickFields } from "../utils/pickFields.js";
 
 interface CreateSectionDto {
   title: string;
   orderIndex?: number;
 }
+
+const UPDATABLE_SECTION_FIELDS = ["title", "orderIndex"] as const;
 
 export class SectionService {
   private sectionRepo = AppDataSource.getRepository(Section);
@@ -42,7 +45,7 @@ export class SectionService {
   ): Promise<Section> {
     await this.assertOwnership(courseId, creatorId);
     const section = await this.findOrFail(sectionId, courseId);
-    Object.assign(section, dto);
+    Object.assign(section, pickFields(dto, UPDATABLE_SECTION_FIELDS));
     return this.sectionRepo.save(section);
   }
 

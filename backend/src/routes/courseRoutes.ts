@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createRouter } from "../utils/safeRouter.js";
 import { CourseController } from "../controllers/CourseController.js";
-import { authenticate, authorize } from "../middlewares/auth.js";
+import { authenticate, authorize, optionalAuthenticate } from "../middlewares/auth.js";
 
 const router = createRouter();
 
@@ -12,7 +12,10 @@ router.get("/", CourseController.list);
 router.get("/my/courses", authenticate, CourseController.listMyCourses);
 
 // ── Dynamic segment ───────────────────────────────────────────────────────────
-router.get("/:id", CourseController.getOne);
+// optionalAuthenticate (not authenticate): published courses stay public
+// with no token; draft/archived ones need req.user to check ownership
+// against, but the route itself doesn't require being logged in.
+router.get("/:id", optionalAuthenticate, CourseController.getOne);
 
 // ── Creator / Admin ───────────────────────────────────────────────────────────
 router.post(

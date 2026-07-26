@@ -15,5 +15,5 @@ export const reviewRouter = createRouter();
 
 reviewRouter.patch("/:id", authenticate, ReviewController.update);
 reviewRouter.delete("/:id", authenticate, ReviewController.remove);
-reviewRouter.post("/:id/helpful", ReviewController.markHelpful);
+reviewRouter.post("/:id/helpful", authenticate, ReviewController.markHelpful);
 reviewRouter.post("/:id/report", authenticate, reportRateLimiter, ReviewController.report);

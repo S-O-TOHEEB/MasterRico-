@@ -167,6 +167,19 @@ export class LiveSessionService {
     if (!s) throw new Error("Session not found");
     if (s.status !== LiveSessionStatus.SCHEDULED) throw new Error("Session is not open for RSVPs");
 
+    // pricePence is stored and settable by the host, but there is currently
+    // no payment integration for live sessions at all — rsvp() used to
+    // ignore this field entirely, letting anyone attend a paid session for
+    // free. This is a deliberate, minimal fix (block rather than silently
+    // allow) rather than building a full payment flow speculatively: that
+    // would mean guessing at refund policy, waitlists, and checkout UX with
+    // no product spec to build against. A real paid-RSVP flow needs the
+    // same PaymentOrchestrator/webhook pattern as enrollments/subscriptions
+    // — see EnrollmentService.initiatePayment for the shape it should take.
+    if (s.pricePence > 0) {
+      throw new Error("Paid live sessions aren't purchasable yet — contact support");
+    }
+
     const existing = await this.rsvpRepo.findOneBy({ sessionId, userId });
     if (existing) throw new Error("Already registered");
 

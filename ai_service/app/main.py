@@ -21,6 +21,8 @@ async def lifespan(app: FastAPI):
     # when the AsyncOpenAI client goes out of scope.
 
 
+_is_dev = settings.environment != "production"
+
 app = FastAPI(
     title="EduStream AI Service",
     description=(
@@ -28,8 +30,11 @@ app = FastAPI(
         "the Study Assistant, and personalised recommendations."
     ),
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Unlike the Node backend (which already correctly disables Swagger
+    # outside development), these were always on regardless of environment
+    # — exposing the full route/schema map on a production deploy.
+    docs_url="/docs" if _is_dev else None,
+    redoc_url="/redoc" if _is_dev else None,
     lifespan=lifespan,
 )
 

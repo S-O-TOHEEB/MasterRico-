@@ -50,7 +50,7 @@ export const ReviewController = {
 
   // POST /reviews/:id/helpful
   async markHelpful(req: Request, res: Response) {
-    const review = await reviewService.markHelpful(param(req, "id"));
+    const review = await reviewService.markHelpful(param(req, "id"), req.user!.id);
     res.json({ success: true, data: review });
   },
 

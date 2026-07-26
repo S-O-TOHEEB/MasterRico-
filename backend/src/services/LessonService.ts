@@ -4,6 +4,8 @@ import { LessonProgress } from "../entities/LessonProgress.js";
 import { Course } from "../entities/Course.js";
 import { EnrollmentService } from "./EnrollmentService.js";
 import { aiService } from "./AiService.js";
+import { WebhookService } from "./WebhookService.js";
+import { pickFields } from "../utils/pickFields.js";
 
 interface CreateLessonDto {
   title: string;
@@ -15,11 +17,16 @@ interface CreateLessonDto {
   isPreviewable?: boolean;
 }
 
+const UPDATABLE_LESSON_FIELDS = [
+  "title", "description", "type", "videoUrl", "durationSeconds", "orderIndex", "isPreviewable",
+] as const;
+
 export class LessonService {
   private lessonRepo   = AppDataSource.getRepository(Lesson);
   private progressRepo = AppDataSource.getRepository(LessonProgress);
   private courseRepo   = AppDataSource.getRepository(Course);
   private enrollmentService = new EnrollmentService();
+  private webhookService = new WebhookService();
 
   async create(
     courseId: string, sectionId: string, creatorId: string,
@@ -47,16 +54,32 @@ export class LessonService {
     return this.lessonRepo.save(lesson);
   }
 
-  async listBySection(courseId: string, sectionId: string): Promise<Lesson[]> {
-    return this.lessonRepo.find({
+  async listBySection(courseId: string, sectionId: string, requesterId?: string, requesterRole?: string): Promise<Lesson[]> {
+    const lessons = await this.lessonRepo.find({
       where: { courseId, sectionId },
       order: { orderIndex: "ASC" },
     });
+
+    const hasFullAccess = requesterId ? await this.hasGatedAccess(requesterId, courseId, requesterRole) : false;
+
+    // Title/description/duration stay visible either way so people can
+    // browse and decide whether to buy — only the actual playable URL is
+    // gated. Without this, GET /courses/:id/sections/:id/lessons (a fully
+    // public route with no auth at all) handed out the direct Mux/S3
+    // playback URL for every lesson in every course, paid or not.
+    return lessons.map((lesson) =>
+      lesson.isPreviewable || hasFullAccess ? lesson : { ...lesson, videoUrl: undefined }
+    );
   }
 
-  async findById(lessonId: string): Promise<Lesson> {
+  async findById(lessonId: string, requesterId?: string, requesterRole?: string): Promise<Lesson> {
     const lesson = await this.lessonRepo.findOneBy({ id: lessonId });
     if (!lesson) throw new Error("Lesson not found");
+
+    const hasFullAccess = requesterId ? await this.hasGatedAccess(requesterId, lesson.courseId, requesterRole) : false;
+    if (!lesson.isPreviewable && !hasFullAccess) {
+      return { ...lesson, videoUrl: undefined };
+    }
     return lesson;
   }
 
@@ -66,7 +89,7 @@ export class LessonService {
   ): Promise<Lesson> {
     await this.assertOwnership(courseId, creatorId);
     const lesson = await this.findInCourse(lessonId, courseId);
-    Object.assign(lesson, dto);
+    Object.assign(lesson, pickFields(dto, UPDATABLE_LESSON_FIELDS));
     return this.lessonRepo.save(lesson);
   }
 
@@ -109,7 +132,14 @@ export class LessonService {
     const saved = await this.progressRepo.save(progress);
 
     // Sync overall course progress — may auto-complete enrollment
-    await this.enrollmentService.syncProgress(userId, lesson.courseId);
+    const { justCompleted } = await this.enrollmentService.syncProgress(userId, lesson.courseId);
+    if (justCompleted) {
+      // Best-effort, non-blocking — see WebhookService.onCourseCompletion.
+      // This was previously never called from anywhere: completion never
+      // auto-issued a certificate despite the method existing for exactly
+      // this purpose.
+      await this.webhookService.onCourseCompletion(userId, lesson.courseId);
+    }
 
     return saved;
   }
@@ -134,6 +164,14 @@ export class LessonService {
   }
 
   // ── Private ──────────────────────────────────────────────────────────────────
+  private async hasGatedAccess(userId: string, courseId: string, role?: string): Promise<boolean> {
+    if (role === "admin") return true;
+    const hasEnrollment = await this.enrollmentService.hasAccess(userId, courseId);
+    if (hasEnrollment) return true;
+    const course = await this.courseRepo.findOneBy({ id: courseId });
+    return course?.creatorId === userId;
+  }
+
   private async assertOwnership(courseId: string, creatorId: string): Promise<void> {
     const course = await this.courseRepo.findOneBy({ id: courseId, creatorId });
     if (!course) throw new Error("Course not found or access denied");

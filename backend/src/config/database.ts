@@ -35,6 +35,9 @@ import { Message }           from "../entities/Message.js";
 // Payments ledger
 import { Payment } from "../entities/Payment.js";
 
+// Per-user engagement vote tracking (prevents helpful/upvote count inflation)
+import { EngagementVote } from "../entities/EngagementVote.js";
+
 dotenv.config();
 
 const entities = [
@@ -48,6 +51,7 @@ const entities = [
   LiveSession, LiveSessionRsvp,
   PaymentMethod, PortfolioProject, Conversation, Message,
   Payment,
+  EngagementVote,
 ];
 
 const isProduction = process.env.NODE_ENV === "production";

@@ -56,9 +56,18 @@ const PORT = parseInt(process.env.PORT || "3000");
 
 // ── Security / Parsing ───────────────────────────────────────────────────────
 app.use(helmet());
+// CORS_ORIGINS defaulting to "*" with credentials:true is the combination
+// browsers themselves refuse to honor, but treating the env var as
+// optional here still signals the wrong thing for a credentialed API — a
+// misconfigured production deploy should fail closed (block cross-origin
+// entirely until it's set), not silently fall back to "allow everything".
+const corsOrigins = process.env.CORS_ORIGINS?.split(",");
+if (!corsOrigins && process.env.NODE_ENV === "production") {
+  logger.warn("[App] CORS_ORIGINS is not set in production — blocking all cross-origin requests until it is");
+}
 app.use(
   cors({
-    origin: process.env.CORS_ORIGINS?.split(",") ?? "*",
+    origin: corsOrigins ?? (process.env.NODE_ENV === "production" ? [] : "*"),
     credentials: true,
   })
 );
@@ -75,7 +84,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serves files written by the local-storage fallback (STORAGE_PROVIDER=local).
 // Harmless when using s3/cloudinary — the directory just stays empty.
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// Content-Disposition: attachment forces a download rather than inline
+// rendering — defense in depth on top of the upload type allow-list
+// (allowedUploadTypes.ts): even if something unexpected ever got past that
+// check, the browser won't execute it just by hitting this URL directly.
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), {
+  setHeaders: (res) => res.setHeader("Content-Disposition", "attachment"),
+}));
 
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {

@@ -1,6 +1,7 @@
 import { AppDataSource } from "../config/database.js";
 import { LearningPath, LearningPathStatus } from "../entities/LearningPath.js";
 import { Course, CourseStatus } from "../entities/Course.js";
+import { pickFields } from "../utils/pickFields.js";
 
 interface CreateLearningPathDto {
   title: string;
@@ -14,6 +15,10 @@ interface CreateLearningPathDto {
 interface UpdateLearningPathDto extends Partial<CreateLearningPathDto> {
   estimatedDurationMinutes?: number;
 }
+
+const UPDATABLE_LEARNING_PATH_FIELDS = [
+  "title", "description", "outcome", "thumbnailUrl", "courseIds", "tags", "estimatedDurationMinutes",
+] as const;
 
 export class LearningPathService {
   private pathRepo = AppDataSource.getRepository(LearningPath);
@@ -29,9 +34,19 @@ export class LearningPathService {
 
     const totalDuration = await this.computeTotalDuration(dto.courseIds ?? []);
 
+    // creatorId and status are placed AFTER the spread deliberately — a
+    // JS object literal lets later keys win on collision, so a `...dto`
+    // spread placed before them would otherwise let a request body
+    // containing `creatorId` override the real creator and attribute the
+    // path to a different (attacker-chosen) user. courseIds is already
+    // validated above; title/description/outcome/thumbnailUrl/tags are
+    // the only other fields CreateLearningPathDto declares, so spreading
+    // dto here is safe as long as nothing dangerous is set afterward — but
+    // being explicit costs nothing and matches the whitelist pattern used
+    // everywhere else in this codebase now.
     const path = this.pathRepo.create({
+      ...pickFields(dto, ["title", "description", "outcome", "thumbnailUrl", "courseIds", "tags"]),
       creatorId,
-      ...dto,
       estimatedDurationMinutes: totalDuration,
       status: LearningPathStatus.DRAFT,
     });
@@ -50,7 +65,7 @@ export class LearningPathService {
       dto.estimatedDurationMinutes = await this.computeTotalDuration(dto.courseIds);
     }
 
-    Object.assign(path, dto);
+    Object.assign(path, pickFields(dto, UPDATABLE_LEARNING_PATH_FIELDS));
     return this.pathRepo.save(path);
   }
 

@@ -46,7 +46,7 @@ export const DiscussionController = {
 
   // POST /discussions/:postId/upvote
   async upvotePost(req: Request, res: Response) {
-    const post = await discussionService.upvotePost(param(req, "postId"));
+    const post = await discussionService.upvotePost(param(req, "postId"), req.user!.id);
     res.json({ success: true, data: post });
   },
 

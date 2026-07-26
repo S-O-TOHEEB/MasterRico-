@@ -1,11 +1,13 @@
 import { AppDataSource } from "../config/database.js";
 import { Enrollment, EnrollmentStatus } from "../entities/Enrollment.js";
 import { Subscription, SubscriptionStatus } from "../entities/Subscription.js";
+import { CorporateAccount } from "../entities/CorporateAccount.js";
 import { Media, MediaProcessingStatus } from "../entities/Media.js";
 import { EnrollmentService } from "./EnrollmentService.js";
 import { SubscriptionService } from "./SubscriptionService.js";
 import { CertificateService } from "./CertificateService.js";
 import { CorporateService } from "./CorporateService.js";
+import { ReferralService } from "./ReferralService.js";
 import { paymentLedgerService } from "./PaymentLedgerService.js";
 import { PaymentType } from "../entities/Payment.js";
 import logger from "../utils/logger.js";
@@ -14,11 +16,37 @@ import crypto from "crypto";
 export class WebhookService {
   private enrollmentRepo = AppDataSource.getRepository(Enrollment);
   private subscriptionRepo = AppDataSource.getRepository(Subscription);
+  private corporateAccountRepo = AppDataSource.getRepository(CorporateAccount);
   private mediaRepo = AppDataSource.getRepository(Media);
   private enrollmentService = new EnrollmentService();
   private subscriptionService = new SubscriptionService();
   private certificateService = new CertificateService();
   private corporateService = new CorporateService();
+  private referralService = new ReferralService();
+
+  /**
+   * The amount actually confirmed by a signature-verified webhook is
+   * trustworthy; what metadata.enrollmentId/etc. points at is not on its
+   * own, since a client controls what it references when a payment is
+   * created. Without this check, someone could create a real, full-price
+   * PENDING enrollment, then start a *separate* trivial-amount payment
+   * carrying that same enrollmentId in its metadata, and this webhook would
+   * activate the full-price enrollment off the trivial payment. Comparing
+   * the confirmed paid amount against the resource's own stored price
+   * before activating closes that regardless of how the mismatched payment
+   * got created — defense in depth on top of removing the one endpoint that
+   * made it easy (see paymentRoutes.ts).
+   */
+  private verifyAmount(
+    paidPence: number, expectedPence: number, kind: string, id: string, gateway: string
+  ): boolean {
+    if (paidPence === expectedPence) return true;
+    logger.warn(
+      `[Webhook/${gateway}] SECURITY: paid amount (${paidPence}) does not match ` +
+        `${kind} ${id}'s expected price (${expectedPence}) — refusing to activate`
+    );
+    return false;
+  }
 
   /**
    * A single PaymentIntent/charge only ever carries the metadata for ONE of
@@ -34,7 +62,27 @@ export class WebhookService {
     gatewayRef: string,
     gateway: "stripe" | "paystack"
   ): Promise<void> {
+    // Was never called from anywhere before this — applyCode() successfully
+    // recorded a PENDING conversion on referred signups, but nothing ever
+    // converted it, so referrers were silently never granted their reward.
+    // convertReferral() is a self-guarding no-op if there's no PENDING
+    // conversion for this user, so it's safe to call unconditionally here
+    // rather than duplicating it in all four branches below — this counts
+    // a user's first successful purchase of any kind (enrollment,
+    // subscription, corporate, certificate), not just course enrollment.
+    const purchaserId = metadata.userId ?? metadata.adminUserId;
+    if (purchaserId) {
+      await this.referralService.convertReferral(purchaserId);
+    }
+
     if (metadata.enrollmentId) {
+      const enrollment = await this.enrollmentRepo.findOneBy({ id: metadata.enrollmentId });
+      if (!enrollment) {
+        logger.warn(`[Webhook/${gateway}] Enrollment ${metadata.enrollmentId} not found — nothing to activate`);
+        return;
+      }
+      if (!this.verifyAmount(amountPence, enrollment.amountPaid, "enrollment", enrollment.id, gateway)) return;
+
       await this.enrollmentService.activateEnrollment(metadata.enrollmentId, gatewayRef);
       await paymentLedgerService.markPaidByReference(PaymentType.COURSE_ENROLLMENT, metadata.enrollmentId, gatewayRef);
       logger.info(`[Webhook/${gateway}] Enrollment ${metadata.enrollmentId} activated`);
@@ -42,6 +90,13 @@ export class WebhookService {
     }
 
     if (metadata.subscriptionId) {
+      const subscription = await this.subscriptionRepo.findOneBy({ id: metadata.subscriptionId });
+      if (!subscription) {
+        logger.warn(`[Webhook/${gateway}] Subscription ${metadata.subscriptionId} not found — nothing to activate`);
+        return;
+      }
+      if (!this.verifyAmount(amountPence, subscription.amountPence, "subscription", subscription.id, gateway)) return;
+
       await this.subscriptionService.activate(metadata.subscriptionId, gatewayRef, gateway);
       await paymentLedgerService.markPaidByReference(PaymentType.SUBSCRIPTION, metadata.subscriptionId, gatewayRef);
       logger.info(`[Webhook/${gateway}] Subscription ${metadata.subscriptionId} activated`);
@@ -49,6 +104,13 @@ export class WebhookService {
     }
 
     if (metadata.corporateAccountId) {
+      const account = await this.corporateAccountRepo.findOneBy({ id: metadata.corporateAccountId });
+      if (!account) {
+        logger.warn(`[Webhook/${gateway}] Corporate account ${metadata.corporateAccountId} not found — nothing to activate`);
+        return;
+      }
+      if (!this.verifyAmount(amountPence, account.annualFeePence, "corporate account", account.id, gateway)) return;
+
       await this.corporateService.activateAccount(metadata.corporateAccountId);
       await paymentLedgerService.markPaidByReference(PaymentType.CORPORATE_ACCOUNT, metadata.corporateAccountId, gatewayRef);
       logger.info(`[Webhook/${gateway}] Corporate account ${metadata.corporateAccountId} activated`);
@@ -56,6 +118,9 @@ export class WebhookService {
     }
 
     if (metadata.type === PaymentType.VERIFIED_CERTIFICATE && metadata.userId && metadata.courseId) {
+      const expectedFee = CertificateService.VERIFIED_CERT_PRICES[metadata.certTier ?? ""] ?? 1500;
+      if (!this.verifyAmount(amountPence, expectedFee, "verified certificate", `${metadata.userId}/${metadata.courseId}`, gateway)) return;
+
       await this.certificateService.issueVerified(metadata.userId, metadata.courseId, amountPence);
       // No referenceId to mark PAID by here — see PaymentOrchestrator's doc
       // comment: a cert's own record doesn't exist until issueVerified just
@@ -89,6 +154,18 @@ export class WebhookService {
 
   // ── Stripe ──────────────────────────────────────────────────────────────────
 
+  /**
+   * A captured valid signature+body could otherwise be replayed indefinitely
+   * — Stripe's own guidance is to reject payloads older than ~5 minutes.
+   * Used by both verifyStripeSignature and verifyMuxSignature since they
+   * share the same t=/v1= HMAC scheme.
+   */
+  private isTimestampFresh(tsSeconds: string, toleranceSeconds = 300): boolean {
+    const ts = Number(tsSeconds);
+    if (!Number.isFinite(ts)) return false;
+    return Math.abs(Date.now() / 1000 - ts) <= toleranceSeconds;
+  }
+
   verifyStripeSignature(rawBody: Buffer, signature: string): boolean {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret) {
@@ -100,6 +177,10 @@ export class WebhookService {
       const ts = parts.find((p) => p.startsWith("t="))?.slice(2);
       const v1 = parts.find((p) => p.startsWith("v1="))?.slice(3);
       if (!ts || !v1) return false;
+      if (!this.isTimestampFresh(ts)) {
+        logger.warn("[WebhookService] Rejecting Stripe webhook with a stale/replayed timestamp");
+        return false;
+      }
       const payload = `${ts}.${rawBody.toString()}`;
       const expected = crypto
         .createHmac("sha256", secret)
@@ -290,6 +371,10 @@ export class WebhookService {
       const ts = parts.find((p) => p.startsWith("t="))?.slice(2);
       const v1 = parts.find((p) => p.startsWith("v1="))?.slice(3);
       if (!ts || !v1) return false;
+      if (!this.isTimestampFresh(ts)) {
+        logger.warn("[WebhookService] Rejecting Mux webhook with a stale/replayed timestamp");
+        return false;
+      }
       const payload = `${ts}.${rawBody.toString()}`;
       const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
       return crypto.timingSafeEqual(Buffer.from(v1), Buffer.from(expected));

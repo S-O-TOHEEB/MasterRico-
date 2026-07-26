@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 import path from "path";
 import fs from "fs";
 import logger from "../utils/logger.js";
+import { isAllowedUploadType } from "../utils/allowedUploadTypes.js";
 
 export type StorageProvider = "s3" | "cloudinary" | "local";
 
@@ -107,6 +108,13 @@ export class StorageService {
   }
 
   async getPresignedUploadUrl(fileName: string, fileType: string, uploaderId: string): Promise<UploadTarget> {
+    // Applies to all three providers — S3/Cloudinary presigned URLs never
+    // checked fileType before this either, only the local-disk multer path
+    // did (now, via the same allow-list — see allowedUploadTypes.ts for why).
+    if (!isAllowedUploadType(fileType)) {
+      throw new Error(`File type "${fileType}" is not allowed`);
+    }
+
     const key = `uploads/${uploaderId}/${Date.now()}-${sanitizeFileName(fileName)}`;
 
     if (this.provider === "s3") {

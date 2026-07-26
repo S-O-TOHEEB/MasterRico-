@@ -30,9 +30,8 @@ export class CorporateService {
     companyName: string,
     email: string,
     currency = "GBP",
-    customSeats?: number,
   ) {
-    const maxSeats      = customSeats ?? CORPORATE_SEAT_LIMITS[plan];
+    const maxSeats      = CORPORATE_SEAT_LIMITS[plan];
     const annualFee     = CORPORATE_PLAN_PRICES_PENCE[plan];
     const licenceExpiry = new Date();
     licenceExpiry.setFullYear(licenceExpiry.getFullYear() + 1);

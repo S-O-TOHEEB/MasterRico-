@@ -155,10 +155,10 @@ export class EnrollmentService {
     );
   }
 
-  /** Update progress percent from lesson completions */
-  async syncProgress(userId: string, courseId: string): Promise<number> {
+  /** Update progress percent from lesson completions. Returns whether this call just completed the course (for the first time). */
+  async syncProgress(userId: string, courseId: string): Promise<{ progress: number; justCompleted: boolean }> {
     const totalLessons = await this.lessonRepo.count({ where: { courseId } });
-    if (totalLessons === 0) return 0;
+    if (totalLessons === 0) return { progress: 0, justCompleted: false };
 
     const completedLessons = await this.lessonProgressRepo.count({
       where: { userId, isCompleted: true, lesson: { courseId } },
@@ -166,14 +166,27 @@ export class EnrollmentService {
     });
 
     const progress = Math.round((completedLessons / totalLessons) * 100);
-    await this.enrollmentRepo.update(
-      { userId, courseId },
-      {
+    const before = await this.enrollmentRepo.findOneBy({ userId, courseId });
+
+    // Scoped to ACTIVE/COMPLETED only — without this, a PENDING (unpaid)
+    // enrollment could be promoted straight to COMPLETED by marking every
+    // lesson's progress complete and syncing, bypassing payment entirely.
+    // The webhook's activateEnrollment already had an equivalent guard;
+    // this one didn't.
+    const result = await this.enrollmentRepo
+      .createQueryBuilder()
+      .update(Enrollment)
+      .set({
         progressPercent: progress,
         ...(progress === 100 ? { status: EnrollmentStatus.COMPLETED, completedAt: new Date() } : {}),
-      }
-    );
-    return progress;
+      })
+      .where("userId = :userId", { userId })
+      .andWhere("courseId = :courseId", { courseId })
+      .andWhere("status IN (:...allowed)", { allowed: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED] })
+      .execute();
+
+    const justCompleted = progress === 100 && !!result.affected && before?.status === EnrollmentStatus.ACTIVE;
+    return { progress, justCompleted };
   }
 
   async listByUser(userId: string) {

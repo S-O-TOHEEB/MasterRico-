@@ -1,5 +1,6 @@
 import { AppDataSource } from "../config/database.js";
 import { PortfolioProject } from "../entities/PortfolioProject.js";
+import { pickFields } from "../utils/pickFields.js";
 
 export interface PortfolioProjectDto {
   title?: string;
@@ -8,6 +9,8 @@ export interface PortfolioProjectDto {
   imageUrl?: string;
   orderIndex?: number;
 }
+
+const UPDATABLE_PORTFOLIO_FIELDS = ["title", "description", "projectUrl", "imageUrl", "orderIndex"] as const;
 
 export class PortfolioService {
   private repo = AppDataSource.getRepository(PortfolioProject);
@@ -35,7 +38,7 @@ export class PortfolioService {
 
   async update(creatorId: string, id: string, dto: PortfolioProjectDto): Promise<PortfolioProject> {
     const project = await this.findOwnedOrFail(id, creatorId);
-    Object.assign(project, dto);
+    Object.assign(project, pickFields(dto, UPDATABLE_PORTFOLIO_FIELDS));
     return this.repo.save(project);
   }
 

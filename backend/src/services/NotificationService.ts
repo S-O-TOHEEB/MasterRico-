@@ -13,7 +13,11 @@ export class NotificationService {
   private notifRepo = AppDataSource.getRepository(Notification);
 
   async create(userId: string, dto: CreateNotificationDto): Promise<Notification> {
-    const notif = this.notifRepo.create({ userId, ...dto });
+    // userId placed after the spread deliberately — see
+    // LearningPathService.create for why field order matters here even
+    // though this method is currently only ever called with
+    // server-constructed dto objects, never raw user input.
+    const notif = this.notifRepo.create({ ...dto, userId });
     return this.notifRepo.save(notif);
   }
 

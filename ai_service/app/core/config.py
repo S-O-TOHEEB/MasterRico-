@@ -16,5 +16,10 @@ class Settings(BaseSettings):
     ai_service_port: int = 8000
     log_level: str = "info"
 
+    # development | production — gates /docs and /redoc (see main.py).
+    # Matches the Node backend's NODE_ENV pattern; set to "production" on
+    # every real deploy.
+    environment: str = "development"
+
 
 settings = Settings()

@@ -1,9 +1,11 @@
 import { type Request, type Response } from "express";
 import { EnrollmentService } from "../services/EnrollmentService.js";
+import { WebhookService } from "../services/WebhookService.js";
 import { EnrollmentSource } from "../entities/Enrollment.js";
 import { param } from "../utils/params.js";
 
 const enrollmentService = new EnrollmentService();
+const webhookService = new WebhookService();
 
 export const EnrollmentController = {
   // POST /enrollments/free  { courseId }
@@ -41,10 +43,13 @@ export const EnrollmentController = {
 
   // POST /enrollments/:courseId/progress/sync
   async syncProgress(req: Request, res: Response) {
-    const progress = await enrollmentService.syncProgress(
+    const { progress, justCompleted } = await enrollmentService.syncProgress(
       req.user!.id,
       param(req, "courseId")
     );
+    if (justCompleted) {
+      await webhookService.onCourseCompletion(req.user!.id, param(req, "courseId"));
+    }
     res.json({ success: true, data: { progressPercent: progress } });
   },
 

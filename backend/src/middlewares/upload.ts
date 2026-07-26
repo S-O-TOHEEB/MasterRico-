@@ -2,6 +2,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import type { Request } from "express";
+import { isAllowedUploadType } from "../utils/allowedUploadTypes.js";
 
 /**
  * Disk storage backing STORAGE_PROVIDER=local. Only meaningful for local
@@ -31,4 +32,13 @@ const diskStorage = multer.diskStorage({
 export const localUploadMiddleware = multer({
   storage: diskStorage,
   limits: { fileSize: 200 * 1024 * 1024 }, // 200MB — large video should go through /media/video/upload (Mux) instead
+  fileFilter: (_req, file, cb) => {
+    if (!isAllowedUploadType(file.mimetype)) {
+      const err = new Error(`File type "${file.mimetype}" is not allowed`);
+      (err as any).statusCode = 400;
+      cb(err);
+      return;
+    }
+    cb(null, true);
+  },
 });

@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { createRouter } from "../utils/safeRouter.js";
 import { LessonController } from "../controllers/LessonController.js";
-import { authenticate, authorize } from "../middlewares/auth.js";
+import { authenticate, authorize, optionalAuthenticate } from "../middlewares/auth.js";
 
 // ── Mounted at /courses/:courseId/sections/:sectionId/lessons ────────────────
 export const lessonRouter = createRouter({ mergeParams: true });
 
-lessonRouter.get("/", LessonController.list);
+lessonRouter.get("/", optionalAuthenticate, LessonController.list);
 
 lessonRouter.post(  "/",          authenticate, authorize("creator","admin"), LessonController.create);
 lessonRouter.put(   "/reorder",   authenticate, authorize("creator","admin"), LessonController.reorder);

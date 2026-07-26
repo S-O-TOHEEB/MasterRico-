@@ -14,6 +14,16 @@ You are currently helping a learner with the following course:
 
 Tailor your answers to this course's content and level where relevant."""
 
+# The only two roles a conversation_history entry is ever allowed to carry
+# into the LLM call. The Pydantic request schema (ConversationTurn.role:
+# Literal["user", "assistant"]) already enforces this for every call that
+# comes in through the HTTP route — this is a second, function-level check
+# so answer_question is self-defending even if it's ever called directly
+# with hand-built dicts that skip that schema validation. Without it, a
+# role: "system" entry would let the caller inject an extra system message
+# and override the assistant's guardrails above.
+ALLOWED_HISTORY_ROLES = {"user", "assistant"}
+
 
 async def answer_question(
     question: str,
@@ -38,7 +48,10 @@ async def answer_question(
 
     # Limit history to last 10 turns to stay well within context limits
     for turn in conversation_history[-10:]:
-        messages.append({"role": turn["role"], "content": turn["content"]})
+        role = turn["role"]
+        if role not in ALLOWED_HISTORY_ROLES:
+            continue  # silently drop rather than error — malformed history shouldn't break the whole request
+        messages.append({"role": role, "content": turn["content"]})
 
     messages.append({"role": "user", "content": question})
 

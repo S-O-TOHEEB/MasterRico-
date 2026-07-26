@@ -10,18 +10,8 @@ import { parsePagination } from "../utils/pagination.js";
 
 const service = new PaymentService();
 
-export const initializePayment = async (req: Request, res: Response) => {
-  try {
-    const { amount, currency, metadata } = req.body;
-    const user = req.user!;
-    // email is available directly from the JWT payload — no unsafe cast needed
-    const result = await service.initializePayment(amount, currency, user.email, {
-      ...metadata,
-      userId: user.id,
-    });
-    res.json(result);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
-};
+// Deliberately no initializePayment export here — see the comment block at
+// the top of paymentRoutes.ts for why the generic endpoint was removed.
 
 // ── Payment ledger (GET/admin surface — see PaymentLedgerService) ───────────
 

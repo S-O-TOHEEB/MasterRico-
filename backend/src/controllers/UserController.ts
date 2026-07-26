@@ -25,8 +25,20 @@ export const getUser = async (req: Request, res: Response) => {
   try {
     const user = await service.findById(param(req, "id"));
     if (!user) return res.status(404).json({ message: "User not found" });
-    // Strip password from public profile
-    const { password: _, isActive, ...safe } = user;
+    // Explicit whitelist, not a blacklist — a blacklist silently exposes
+    // every new column added to User in the future (email, stripeCustomerId,
+    // creatorPayoutAccountId, isFoundingCreator, OTP/reset timestamps, etc.
+    // were all being returned here before this fix) unless someone
+    // remembers to add it to the exclusion list too.
+    const safe = {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      bio: user.bio,
+      profilePictureUrl: user.profilePictureUrl,
+      websiteUrl: user.websiteUrl,
+      linkedinUrl: user.linkedinUrl,
+    };
     res.json(safe);
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };

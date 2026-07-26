@@ -8,11 +8,20 @@ const corporateService = new CorporateService();
 
 export const CorporateController = {
   // POST /corporate/accounts  { plan, companyName, currency? }
+  //
+  // customSeats used to be accepted here directly, overriding maxSeats
+  // while annualFee was still computed from `plan` alone — anyone could buy
+  // the cheapest plan with an enormous customSeats value and get
+  // effectively unlimited seats for the base price. Seat count is now
+  // derived solely from `plan`. A negotiated seat count above a plan's
+  // default (the CorporateAccount entity's own comment calls this out as a
+  // real, intended case for enterprise deals) needs an admin action after
+  // manual negotiation, not a field on the public purchase call.
   async initiatePurchase(req: Request, res: Response) {
-    const { plan, companyName, currency, customSeats } =
+    const { plan, companyName, currency } =
       req.body as {
         plan?: CorporatePlan; companyName?: string;
-        currency?: string;    customSeats?: number;
+        currency?: string;
       };
     if (!plan || !companyName) {
       res.status(400).json({ success: false, message: "plan and companyName are required" });
@@ -23,7 +32,7 @@ export const CorporateController = {
       return;
     }
     const result = await corporateService.initiatePurchase(
-      req.user!.id, plan, companyName, req.user!.email, currency, customSeats,
+      req.user!.id, plan, companyName, req.user!.email, currency,
     );
     res.status(201).json({ success: true, data: result });
   },

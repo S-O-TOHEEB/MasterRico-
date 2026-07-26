@@ -4,6 +4,7 @@ import { User, SubscriptionTier } from "../entities/User.js";
 import { Enrollment } from "../entities/Enrollment.js";
 import { courseQueue } from "../utils/queue.js";
 import logger from "../utils/logger.js";
+import { pickFields } from "../utils/pickFields.js";
 
 interface CreateCourseDto {
   title: string;
@@ -23,6 +24,17 @@ interface UpdateCourseDto extends Partial<CreateCourseDto> {
   resourceUrls?: string[];
   tags?: string[];
 }
+
+// Deliberately excludes status, creatorId, qualityScore, averageRating,
+// enrollmentCount, totalRevenuePence, and every other ordinary Course
+// column not in this list — those are either admin/system-managed or
+// computed, and none of them should be settable through a creator's own
+// "edit my course" request body.
+const UPDATABLE_COURSE_FIELDS = [
+  "title", "description", "tagline", "pricePence", "currency", "difficultyLevel",
+  "learningOutcomes", "prerequisites", "language",
+  "thumbnailUrl", "previewVideoUrl", "resourceUrls", "tags",
+] as const;
 
 interface ListCoursesOptions {
   page?: number;
@@ -69,7 +81,7 @@ export class CourseService {
     dto: UpdateCourseDto
   ): Promise<Course> {
     const course = await this.findOwnedOrFail(courseId, creatorId);
-    Object.assign(course, dto);
+    Object.assign(course, pickFields(dto, UPDATABLE_COURSE_FIELDS));
     return this.courseRepo.save(course);
   }
 

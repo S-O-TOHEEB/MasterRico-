@@ -8,7 +8,7 @@ export const LessonController = {
   // GET /courses/:courseId/sections/:sectionId/lessons
   async list(req: Request, res: Response) {
     const lessons = await lessonService.listBySection(
-      param(req, "courseId"), param(req, "sectionId")
+      param(req, "courseId"), param(req, "sectionId"), req.user?.id, req.user?.role
     );
     res.json({ success: true, data: lessons });
   },

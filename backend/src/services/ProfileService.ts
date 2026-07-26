@@ -2,6 +2,7 @@ import { AppDataSource } from "../config/database.js";
 import { User } from "../entities/User.js";
 import { TrustConnection } from "../entities/TrustConnection.js";
 import { Course, CourseStatus } from "../entities/Course.js";
+import { pickFields } from "../utils/pickFields.js";
 
 interface UpdateProfileDto {
   firstName?: string;
@@ -12,6 +13,10 @@ interface UpdateProfileDto {
   linkedinUrl?: string;
   interests?: string[];
 }
+
+const UPDATABLE_PROFILE_FIELDS = [
+  "firstName", "lastName", "bio", "profilePictureUrl", "websiteUrl", "linkedinUrl", "interests",
+] as const;
 
 export class ProfileService {
   private userRepo = AppDataSource.getRepository(User);
@@ -27,7 +32,12 @@ export class ProfileService {
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
     const user = await this.userRepo.findOneBy({ id: userId });
     if (!user) throw new Error("User not found");
-    Object.assign(user, dto);
+    // dto is really req.body — the interface above documents intent but
+    // doesn't enforce it at runtime, so this whitelist is the actual
+    // security boundary, not the TypeScript type. Without it, a request
+    // body containing role/subscriptionTier/isFoundingCreator/etc. (ordinary
+    // columns on User) would silently grant admin access or free premium.
+    Object.assign(user, pickFields(dto, UPDATABLE_PROFILE_FIELDS));
     return this.userRepo.save(user);
   }
 

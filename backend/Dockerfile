@@ -14,6 +14,14 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
+
+# Run as a non-root user rather than the image default (root) — a security
+# audit flagged this; node:22-alpine already ships a pre-created "node"
+# user/group (uid/gid 1000) for exactly this purpose, so no separate
+# useradd step is needed.
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 3000
 # ${PORT:-3000} — Railway/Render inject their own dynamic PORT at runtime, which
 # the app already reads correctly (see src/index.ts); the healthcheck needs to

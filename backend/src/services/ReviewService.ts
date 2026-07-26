@@ -2,6 +2,7 @@ import { AppDataSource } from "../config/database.js";
 import { Review } from "../entities/Review.js";
 import { Course } from "../entities/Course.js";
 import { Enrollment, EnrollmentStatus } from "../entities/Enrollment.js";
+import { EngagementVote, EngagementTargetType } from "../entities/EngagementVote.js";
 
 interface CreateReviewDto {
   rating: number;   // 1–5
@@ -10,6 +11,7 @@ interface CreateReviewDto {
 
 export class ReviewService {
   private reviewRepo = AppDataSource.getRepository(Review);
+  private voteRepo = AppDataSource.getRepository(EngagementVote);
   private courseRepo = AppDataSource.getRepository(Course);
   private enrollmentRepo = AppDataSource.getRepository(Enrollment);
 
@@ -65,11 +67,21 @@ export class ReviewService {
     await this.updateCourseStats(review.courseId);
   }
 
-  async markHelpful(reviewId: string): Promise<Review> {
+  async markHelpful(reviewId: string, userId: string): Promise<Review> {
     const review = await this.reviewRepo.findOneBy({ id: reviewId });
     if (!review) throw new Error("Review not found");
-    review.helpfulCount++;
-    return this.reviewRepo.save(review);
+
+    try {
+      await this.voteRepo.insert({ userId, targetType: EngagementTargetType.REVIEW, targetId: reviewId });
+    } catch (err: any) {
+      if (err.code === "23505") { // Postgres unique_violation
+        throw new Error("You've already marked this review as helpful");
+      }
+      throw err;
+    }
+
+    await this.reviewRepo.increment({ id: reviewId }, "helpfulCount", 1);
+    return this.reviewRepo.findOneByOrFail({ id: reviewId });
   }
 
   // ── Reporting + admin moderation queue ──────────────────────────────────────
